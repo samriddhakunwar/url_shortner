@@ -1,0 +1,90 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv/
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Migrations (optional)
+# Uncomment if you don't want to track migrations
+# */migrations/*
+# !*/migrations/__init__.py
+
+# IDEs
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+coverage.xml
+
+# Type Checking
+.mypy_cache/
+
+# Linting
+.ruff_cache/
+
+# Build Artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Docker
+*.pid
+
+# Logs
+logs/
+*.log
+
+# Secrets
+*.pem
+*.key
+*.crt
+
+# Node (if using Tailwind/Vite/React)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# VS Code settings
+.history/
+
+# PyCharm
+.idea/
+
+# Local settings
+local_settings.py
+
+# Generated QR Codes
+media/qrcodes/
+
+# Collected static files
+staticfiles/
