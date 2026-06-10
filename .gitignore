@@ -15,7 +15,7 @@ ENV/
 db.sqlite3
 db.sqlite3-journal
 media/
-staticfiles/
+# staticfiles/
 
 # Environment Variables
 .env
@@ -86,5 +86,5 @@ local_settings.py
 # Generated QR Codes
 media/qrcodes/
 
-# Collected static files
-staticfiles/
+# Collected static files - committed for Vercel deployment
+# staticfiles/
