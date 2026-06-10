@@ -1,279 +1,64 @@
 {% extends 'frontend/base.html' %}
 
 {% block title %}My URLs{% endblock %}
-{% block meta_desc %}Manage all your shortened URLs — view, edit, copy, and delete.{% endblock %}
-{% block page_title %}My URLs{% endblock %}
 
 {% block content %}
-<div class="page-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-  <div>
-    <h1 class="page-title">My URLs</h1>
-    <p class="page-subtitle">All shortened URLs you have created.</p>
-  </div>
-  <a href="/create/" class="btn btn-primary">➕&nbsp; Create New URL</a>
+<div class="section-header">
+  <h1>My URLs</h1>
+  <a href="/create/" class="btn btn-primary">+ New URL</a>
 </div>
 
-<!-- ── Filter / Search Bar ──────────────────────────────────────────────── -->
-<div class="card" style="margin-bottom:1.25rem;padding:.875rem 1.25rem;">
-  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
-    <div class="search-bar" style="flex:1;min-width:180px;
-         display:flex;align-items:center;gap:.5rem;
-         background:var(--body-bg);border:1px solid var(--border);
-         border-radius:var(--radius-sm);padding:0 .75rem;">
-      <span style="color:var(--text-muted);">🔍</span>
-      <input
-        type="text"
-        id="search-input"
-        placeholder="Search by URL or alias…"
-        style="border:none;background:transparent;outline:none;
-               font-family:var(--font);font-size:.875rem;
-               color:var(--text);padding:.5rem 0;width:100%;"
-      >
-    </div>
-    <select id="filter-status" class="form-control" style="width:auto;padding:.5rem .875rem;">
-      <option value="all">All Status</option>
-      <option value="active">Active</option>
-      <option value="expired">Expired</option>
-    </select>
-    <button class="btn btn-ghost btn-sm" id="refresh-btn" title="Refresh list">
-      🔄 Refresh
-    </button>
-  </div>
-</div>
-
-<!-- ── URL Table Card ────────────────────────────────────────────────────── -->
-<div class="card">
-  <div class="card-header">
-    <span class="card-title">
-      All URLs
-      <span class="badge badge-primary" id="url-count" style="margin-left:.5rem;">—</span>
-    </span>
-    <span style="font-size:.8rem;color:var(--text-2);" id="table-info"></span>
-  </div>
-
-  <div id="table-container">
-    <!-- Loading skeleton -->
-    <div style="padding:1.5rem;" id="skeleton-loader">
-      <div class="skeleton sk-row" style="width:100%;height:14px;margin-bottom:1rem;"></div>
-      <div class="skeleton sk-row" style="width:95%;height:14px;margin-bottom:1rem;"></div>
-      <div class="skeleton sk-row" style="width:92%;height:14px;margin-bottom:1rem;"></div>
-      <div class="skeleton sk-row" style="width:97%;height:14px;"></div>
-    </div>
-  </div>
-</div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-/* ── URL List Page ────────────────────────────────────────────────────────── */
-requireAuth();
-loadUserInfo();
-
-let allUrls = [];   // full list fetched from API
-let toDeleteId = null;
-
-/* ── Fetch All URLs ── */
-async function loadUrls() {
-  try {
-    const res = await apiRequest('/urls/');
-    if (!res) return;
-
-    if (!res.ok) {
-      showToast('Failed to load URLs.', 'error');
-      return;
-    }
-
-    allUrls = await res.json();
-    applyFilters();
-  } catch {
-    showToast('Network error loading URLs.', 'error');
-  }
-}
-
-/* ── Apply Search + Status Filter ── */
-function applyFilters() {
-  const query  = document.getElementById('search-input').value.toLowerCase().trim();
-  const status = document.getElementById('filter-status').value;
-
-  let filtered = allUrls.filter(url => {
-    const matchQuery =
-      !query ||
-      url.original_url.toLowerCase().includes(query) ||
-      url.short_code.toLowerCase().includes(query);
-
-    const expired    = isExpired(url.expires_at);
-    const matchStatus =
-      status === 'all' ||
-      (status === 'active'  && !expired) ||
-      (status === 'expired' &&  expired);
-
-    return matchQuery && matchStatus;
-  });
-
-  renderTable(filtered);
-}
-
-/* ── Render Table ── */
-function renderTable(urls) {
-  const container = document.getElementById('table-container');
-  const countEl   = document.getElementById('url-count');
-  const infoEl    = document.getElementById('table-info');
-
-  countEl.textContent = urls.length;
-  infoEl.textContent  =
-    urls.length !== allUrls.length
-      ? `Showing ${urls.length} of ${allUrls.length}`
-      : `${allUrls.length} total`;
-
-  if (urls.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🔗</div>
-        <div class="empty-title">${allUrls.length === 0 ? 'No URLs yet' : 'No results found'}</div>
-        <div class="empty-desc">
-          ${allUrls.length === 0
-            ? 'You haven\'t created any short URLs. Get started now!'
-            : 'Try adjusting your search or filter.'}
-        </div>
-        ${allUrls.length === 0
-          ? '<a href="/create/" class="btn btn-primary">Create Short URL</a>'
-          : ''}
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Original URL</th>
-            <th>Short URL</th>
-            <th>Alias</th>
-            <th>Clicks</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th>Expires</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${urls.map(url => buildRow(url)).join('')}
-        </tbody>
-      </table>
-    </div>`;
-}
-
-function buildRow(url) {
-  const expired    = isExpired(url.expires_at);
-  const shortFull  = url.short_url || `/r/${url.short_code}/`;
-
-  return `
+{% if urls %}
+<table>
+  <thead>
     <tr>
-      <!-- Original URL -->
-      <td class="td-url" title="${escapeHtml(url.original_url)}">
-        <a href="${escapeHtml(url.original_url)}" target="_blank" rel="noopener"
-           class="url-link">${escapeHtml(truncate(url.original_url, 45))}</a>
+      <th>Original URL</th>
+      <th>Short Code</th>
+      <th>Clicks</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th>Expires</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for url in urls %}
+    <tr>
+      <td class="td-truncate">
+        <a href="{{ url.original_url }}" target="_blank">{{ url.original_url|truncatechars:45 }}</a>
       </td>
-
-      <!-- Short URL -->
-      <td style="white-space:nowrap;">
-        <a href="${escapeHtml(shortFull)}" target="_blank" rel="noopener"
-           class="url-link" style="font-weight:600;">/${escapeHtml(url.short_code)}/</a>
-      </td>
-
-      <!-- Alias -->
       <td>
-        ${url.short_code
-          ? `<span class="badge badge-neutral">${escapeHtml(url.short_code)}</span>`
-          : '<span style="color:var(--text-muted);">—</span>'}
+        <a href="/r/{{ url.short_code }}/" target="_blank">/r/{{ url.short_code }}/</a>
       </td>
-
-      <!-- Clicks -->
+      <td>{{ url.click_count }}</td>
       <td>
-        <span class="badge badge-primary">
-          👆 ${(url.click_count || 0).toLocaleString()}
-        </span>
+        {% if url.is_expired %}
+        <span class="tag tag-red">Expired</span>
+        {% else %}
+        <span class="tag tag-green">Active</span>
+        {% endif %}
       </td>
-
-      <!-- Status -->
-      <td>${statusBadge(url.expires_at)}</td>
-
-      <!-- Created -->
-      <td style="white-space:nowrap;font-size:.8125rem;color:var(--text-2);">
-        ${fmtDate(url.created_at)}
-      </td>
-
-      <!-- Expires -->
-      <td style="white-space:nowrap;font-size:.8125rem;color:var(--text-2);">
-        ${url.expires_at
-          ? `<span style="${expired ? 'color:var(--danger);' : ''}">${fmtDate(url.expires_at)}</span>`
-          : '<span style="color:var(--text-muted);">Never</span>'}
-      </td>
-
-      <!-- Actions -->
+      <td>{{ url.created_at|date:"M j, Y" }}</td>
       <td>
-        <div class="td-actions">
-          <button class="btn btn-ghost btn-sm btn-icon"
-                  title="Copy short URL"
-                  onclick="copyShortUrl('${escapeHtml(shortFull)}', this)">
-            📋
-          </button>
-          <a href="/urls/${url.id}/edit/" class="btn btn-outline btn-sm" title="Edit">
-            ✏️ Edit
-          </a>
-          <button class="btn btn-danger btn-sm"
-                  title="Delete"
-                  onclick="confirmDelete(${url.id})">
-            🗑 Delete
-          </button>
-        </div>
+        {% if url.expires_at %}
+          {{ url.expires_at|date:"M j, Y" }}
+        {% else %}
+          <span class="muted">Never</span>
+        {% endif %}
       </td>
-    </tr>`;
-}
-
-/* ── Copy Short URL ── */
-async function copyShortUrl(url, btn) {
-  await copyText(url, btn);
-  if (btn) showToast('Short URL copied!', 'success');
-}
-
-/* ── Delete ── */
-function confirmDelete(id) {
-  toDeleteId = id;
-  openDeleteModal(async () => {
-    await deleteUrl(id);
-  });
-}
-
-async function deleteUrl(id) {
-  const confirmBtn = document.getElementById('confirm-delete-btn');
-  setLoading(confirmBtn, true, 'Deleting…');
-
-  try {
-    const res = await apiRequest(`/urls/${id}/`, { method: 'DELETE' });
-    if (!res) return;
-
-    if (res.status === 204 || res.ok) {
-      allUrls = allUrls.filter(u => u.id !== id);
-      applyFilters();
-      showToast('URL deleted successfully.', 'success');
-    } else {
-      showToast('Failed to delete URL.', 'error');
-    }
-  } catch {
-    showToast('Network error while deleting.', 'error');
-  } finally {
-    setLoading(confirmBtn, false);
-  }
-}
-
-/* ── Event Listeners ── */
-document.getElementById('search-input').addEventListener('input',  applyFilters);
-document.getElementById('filter-status').addEventListener('change', applyFilters);
-document.getElementById('refresh-btn').addEventListener('click',   loadUrls);
-
-/* ── Init ── */
-document.addEventListener('DOMContentLoaded', loadUrls);
-</script>
+      <td class="td-actions">
+        <a href="/urls/{{ url.id }}/edit/" class="btn btn-sm">Edit</a>
+        <form method="post" action="/urls/{{ url.id }}/delete/" class="inline-form"
+              onsubmit="return confirm('Delete this URL? This cannot be undone.');">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty-msg">You haven't created any short URLs yet. <a href="/create/">Create one now.</a></p>
+{% endif %}
 {% endblock %}

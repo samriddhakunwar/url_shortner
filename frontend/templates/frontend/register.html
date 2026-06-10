@@ -4,227 +4,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register — LinkSnap URL Shortener</title>
-  <meta name="description" content="Create a free LinkSnap account to start shortening and tracking your URLs.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>Register - URL Shortener</title>
   <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
 </head>
-<body>
+<body class="auth-page">
+  <div class="auth-card">
+    <h1>Create an account</h1>
 
-<div id="toast-container"></div>
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="msg msg-{{ msg.tags }}">{{ msg }}</div>
+    {% endfor %}
+    {% endif %}
 
-<div class="auth-layout">
-
-  <!-- ── Left Panel: Branding ─────────────────────────────────────────── -->
-  <div class="auth-left" aria-hidden="true">
-    <div class="auth-logo">
-      <div class="auth-logo-icon">🔗</div>
-      <span class="auth-logo-name">LinkSnap</span>
-    </div>
-
-    <h1 class="auth-headline">
-      Start Shortening<br>URLs for Free
-    </h1>
-    <p class="auth-desc">
-      Join thousands of users who trust LinkSnap for fast, reliable,
-      and trackable short links. No credit card required.
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_username">Username</label>
+        {{ form.username }}
+        {% if form.username.errors %}
+          <span class="field-err">{{ form.username.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <div class="field">
+        <label for="id_email">Email</label>
+        {{ form.email }}
+        {% if form.email.errors %}
+          <span class="field-err">{{ form.email.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <div class="field">
+        <label for="id_password">Password</label>
+        {{ form.password }}
+        {% if form.password.errors %}
+          <span class="field-err">{{ form.password.errors.0 }}</span>
+        {% endif %}
+        <span class="field-hint">At least 8 characters</span>
+      </div>
+      <div class="field">
+        <label for="id_confirm_password">Confirm password</label>
+        {{ form.confirm_password }}
+        {% if form.confirm_password.errors %}
+          <span class="field-err">{{ form.confirm_password.errors.0 }}</span>
+        {% endif %}
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Register</button>
+    </form>
+    <p class="auth-switch">
+      Already have an account? <a href="/login/">Log in</a>
     </p>
-
-    <div class="auth-features">
-      <div class="auth-feat">
-        <div class="auth-feat-icon">✨</div>
-        Free account — no credit card needed
-      </div>
-      <div class="auth-feat">
-        <div class="auth-feat-icon">🎯</div>
-        Custom aliases for memorable links
-      </div>
-      <div class="auth-feat">
-        <div class="auth-feat-icon">⏰</div>
-        Set expiration dates on your links
-      </div>
-      <div class="auth-feat">
-        <div class="auth-feat-icon">📊</div>
-        Detailed click analytics dashboard
-      </div>
-    </div>
   </div>
-
-  <!-- ── Right Panel: Register Form ──────────────────────────────────── -->
-  <div class="auth-right">
-    <div class="auth-box">
-      <h2 class="auth-title">Create your account</h2>
-      <p class="auth-sub">Get started with LinkSnap for free</p>
-
-      <!-- Global form error -->
-      <div class="alert alert-error" id="form-alert" role="alert"></div>
-      <!-- Success message -->
-      <div class="alert alert-success" id="success-alert" role="status"></div>
-
-      <form id="register-form" novalidate>
-
-        <!-- Username -->
-        <div class="form-group">
-          <label class="form-label" for="username">Username</label>
-          <input
-            type="text"
-            id="username"
-            name="username"
-            class="form-control"
-            placeholder="e.g. johndoe"
-            autocomplete="username"
-            required
-          >
-          <div class="field-error" id="username-error"></div>
-        </div>
-
-        <!-- Email -->
-        <div class="form-group">
-          <label class="form-label" for="email">Email address</label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            class="form-control"
-            placeholder="you@example.com"
-            autocomplete="email"
-            required
-          >
-          <div class="field-error" id="email-error"></div>
-        </div>
-
-        <!-- Password -->
-        <div class="form-group">
-          <label class="form-label" for="password">Password</label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            class="form-control"
-            placeholder="Minimum 8 characters"
-            autocomplete="new-password"
-            required
-          >
-          <div class="form-hint">Must be at least 8 characters.</div>
-          <div class="field-error" id="password-error"></div>
-        </div>
-
-        <!-- Confirm Password -->
-        <div class="form-group">
-          <label class="form-label" for="confirm-password">Confirm password</label>
-          <input
-            type="password"
-            id="confirm-password"
-            name="confirm_password"
-            class="form-control"
-            placeholder="Re-enter your password"
-            autocomplete="new-password"
-            required
-          >
-          <div class="field-error" id="confirm-password-error"></div>
-        </div>
-
-        <!-- Submit -->
-        <button type="submit" class="btn btn-primary btn-lg btn-block" id="register-btn">
-          Create Account
-        </button>
-
-      </form>
-
-      <div class="divider"></div>
-      <p class="switch-link">
-        Already have an account? <a href="/login/">Sign in</a>
-      </p>
-    </div>
-  </div>
-
-</div><!-- /auth-layout -->
-
-<script src="{% static 'frontend/js/app.js' %}"></script>
-<script>
-/* ── Register Page Logic ────────────────────────────────────────────────── */
-redirectIfLoggedIn();
-
-const regForm    = document.getElementById('register-form');
-const formAlert  = document.getElementById('form-alert');
-const successEl  = document.getElementById('success-alert');
-
-function showFormAlert(msg) {
-  formAlert.textContent = msg;
-  formAlert.classList.add('show');
-}
-
-regForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  clearFieldErrors(regForm);
-  formAlert.classList.remove('show');
-  successEl.classList.remove('show');
-
-  const username  = document.getElementById('username').value.trim();
-  const email     = document.getElementById('email').value.trim();
-  const password  = document.getElementById('password').value;
-  const confirm   = document.getElementById('confirm-password').value;
-  const btn       = document.getElementById('register-btn');
-
-  /* Client-side validation */
-  let valid = true;
-  if (!username) {
-    showFieldError('username', 'Username is required.');
-    valid = false;
-  }
-  if (!email) {
-    showFieldError('email', 'Email is required.');
-    valid = false;
-  }
-  if (!password) {
-    showFieldError('password', 'Password is required.');
-    valid = false;
-  } else if (password.length < 8) {
-    showFieldError('password', 'Password must be at least 8 characters.');
-    valid = false;
-  }
-  if (password !== confirm) {
-    showFieldError('confirm-password', 'Passwords do not match.');
-    valid = false;
-  }
-  if (!valid) return;
-
-  setLoading(btn, true, 'Creating account…');
-
-  try {
-    const res = await fetch('/api/auth/register/', {
-      method : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body   : JSON.stringify({ username, email, password }),
-    });
-
-    const data = await res.json();
-
-    if (res.ok) {
-      /* Show success, redirect to login after a short delay */
-      successEl.textContent = '✓ Account created! Redirecting to login…';
-      successEl.classList.add('show');
-      setTimeout(() => { window.location.href = '/login/'; }, 1800);
-    } else {
-      /* Map DRF field errors */
-      let handled = false;
-      ['username', 'email', 'password'].forEach(field => {
-        if (data[field]) {
-          showFieldError(field, data[field][0]);
-          handled = true;
-        }
-      });
-      if (data.detail && !handled) showFormAlert(data.detail);
-      if (!handled && !data.detail) showFormAlert('Registration failed. Please check your details.');
-    }
-  } catch {
-    showFormAlert('Network error. Please check your connection.');
-  } finally {
-    setLoading(btn, false);
-  }
-});
-</script>
 </body>
 </html>

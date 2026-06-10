@@ -1,315 +1,67 @@
 {% extends 'frontend/base.html' %}
 
 {% block title %}Analytics{% endblock %}
-{% block meta_desc %}View click analytics, top-performing URLs, and usage statistics for your short links.{% endblock %}
-{% block page_title %}Analytics{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">Analytics</h1>
-  <p class="page-subtitle">Click statistics and performance data for all your short links.</p>
-</div>
+<h1>Analytics</h1>
 
-<!-- ── Summary Stats Row ─────────────────────────────────────────────────── -->
-<div class="stats-grid" style="margin-bottom:1.375rem;">
-  <div class="stat-card">
-
-    <div class="stat-body">
-      <div class="stat-value" id="ana-total-clicks">—</div>
-      <div class="stat-label">Total Clicks</div>
-    </div>
+<div class="stats-row">
+  <div class="stat-box">
+    <div class="stat-num">{{ total_clicks }}</div>
+    <div class="stat-label">Total Clicks</div>
   </div>
-  <div class="stat-card">
-    <div class="stat-body">
-      <div class="stat-value" id="ana-total-urls">—</div>
-      <div class="stat-label">Total URLs</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ total_urls }}</div>
+    <div class="stat-label">Total URLs</div>
   </div>
-  <div class="stat-card">
-    <div class="stat-body">
-      <div class="stat-value" id="ana-best-clicks">—</div>
-      <div class="stat-label">Best URL Clicks</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ best_clicks }}</div>
+    <div class="stat-label">Best URL Clicks</div>
   </div>
-  <div class="stat-card">
-    <div class="stat-body">
-      <div class="stat-value" id="ana-active">—</div>
-      <div class="stat-label">Active Links</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ active_count }}</div>
+    <div class="stat-label">Active Links</div>
   </div>
 </div>
 
-<!-- ── Main Content ──────────────────────────────────────────────────────── -->
-<div style="display:grid;grid-template-columns:1fr minmax(0,320px);gap:1.25rem;align-items:start;">
+<h2>URLs by click count</h2>
 
-  <!-- Top URLs Ranking -->
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">🏆 URLs by Click Count</span>
-      <span class="badge badge-neutral" id="ana-url-count">—</span>
-    </div>
-
-    <!-- Loading state -->
-    <div id="ana-skeleton" style="padding:1.5rem;">
-      <div class="skeleton sk-row" style="width:100%;height:60px;margin-bottom:.75rem;border-radius:8px;"></div>
-      <div class="skeleton sk-row" style="width:100%;height:60px;margin-bottom:.75rem;border-radius:8px;"></div>
-      <div class="skeleton sk-row" style="width:100%;height:60px;border-radius:8px;"></div>
-    </div>
-
-    <div id="ana-list" style="display:none;">
-    </div>
-  </div>
-
-  </div>
-</div>
-
-{% endblock %}
-
-{% block extra_js %}
-<script>
-requireAuth();
-loadUserInfo();
-
-document.addEventListener('DOMContentLoaded', loadAnalytics);
-
-async function loadAnalytics() {
-  try {
-    const res = await apiRequest('/urls/');
-    if (!res) return;
-
-    if (!res.ok) {
-      showToast('Failed to load analytics data.', 'error');
-      return;
-    }
-
-    const urls = await res.json();
-    renderAnalytics(urls);
-  } catch {
-    showToast('Network error loading analytics.', 'error');
-  }
-}
-
-function renderAnalytics(urls) {
-  /* Sort by click_count descending */
-  const sorted     = [...urls].sort((a, b) => (b.click_count || 0) - (a.click_count || 0));
-  const withClicks = sorted.filter(u => (u.click_count || 0) > 0);
-  const noClicks   = sorted.filter(u => (u.click_count || 0) === 0);
-
-  const totalClicks = urls.reduce((s, u) => s + (u.click_count || 0), 0);
-  const bestClicks  = sorted[0]?.click_count || 0;
-  const activeCount = urls.filter(u => !isExpired(u.expires_at)).length;
-
-  /* ── Summary Stats ── */
-  document.getElementById('ana-total-clicks').textContent = totalClicks.toLocaleString();
-  document.getElementById('ana-total-urls').textContent   = urls.length;
-  document.getElementById('ana-best-clicks').textContent  = bestClicks.toLocaleString();
-  document.getElementById('ana-active').textContent       = activeCount;
-  document.getElementById('ana-url-count').textContent    = urls.length;
-
-  /* ── Top URLs Ranking List ── */
-  renderRankingList(sorted);
-
-  /* ── Bar Chart ── */
-  renderBarChart(sorted.slice(0, 8), bestClicks);
-
-  /* ── Zero-click URLs ── */
-  renderZeroClicks(noClicks);
-
-  /* ── Full Table ── */
-  renderFullTable(sorted);
-}
-
-/* ── Ranking list with progress bars ── */
-function renderRankingList(sorted) {
-  const skeleton = document.getElementById('ana-skeleton');
-  const list     = document.getElementById('ana-list');
-
-  skeleton.style.display = 'none';
-  list.style.display     = '';
-
-  if (sorted.length === 0) {
-    list.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <div class="empty-title">No data yet</div>
-        <div class="empty-desc">Create some short URLs and share them to see analytics.</div>
-        <a href="/create/" class="btn btn-primary">Create Short URL</a>
-      </div>`;
-    return;
-  }
-
-  const max = sorted[0]?.click_count || 1;
-
-  list.innerHTML = sorted.map((url, idx) => {
-    const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-n';
-    const shortFull = url.short_url || `/r/${url.short_code}/`;
-    const pct       = max > 0 ? Math.round(((url.click_count || 0) / max) * 100) : 0;
-
-    return `
-      <div class="url-analytics-item">
-        <div class="ana-rank ${rankClass}">${idx + 1}</div>
-        <div class="ana-info">
-          <div class="ana-url" title="${escapeHtml(url.original_url)}">
-            ${escapeHtml(truncate(url.original_url, 50))}
-          </div>
-          <a href="${escapeHtml(shortFull)}" target="_blank" rel="noopener"
-             class="ana-short">${escapeHtml(shortFull)}</a>
-          <div class="ana-meta">
-            Created ${fmtDate(url.created_at)}
-            ${url.last_clicked_at ? ' · Last click ' + fmtDateTime(url.last_clicked_at) : ''}
-            ${url.expires_at ? ' · ' + statusBadge(url.expires_at) : ''}
-          </div>
-          <!-- Click bar -->
-          <div class="progress-row" style="margin-top:.5rem;">
-            <div class="progress-track" style="flex:1;">
-              <div class="progress-fill" style="width:${pct}%;"></div>
-            </div>
-            <div class="progress-count">${(url.click_count || 0).toLocaleString()}</div>
-          </div>
-        </div>
-        <div class="ana-clicks">
-          <div class="click-num">${(url.click_count || 0).toLocaleString()}</div>
-          <div class="click-lbl">clicks</div>
-        </div>
-      </div>`;
-  }).join('');
-}
-
-/* ── Bar Chart ── */
-function renderBarChart(urls, maxClicks) {
-  const container = document.getElementById('bar-chart-container');
-  if (urls.length === 0 || maxClicks === 0) {
-    container.innerHTML = `
-      <div style="text-align:center;color:var(--text-muted);font-size:.875rem;padding:1rem 0;">
-        No click data available yet.
-      </div>`;
-    return;
-  }
-
-  const chartHeight = 110; // px
-
-  container.innerHTML = `
-    <div style="display:flex;align-items:flex-end;gap:6px;height:${chartHeight}px;padding-bottom:0;">
-      ${urls.map(url => {
-        const pct    = maxClicks > 0 ? (url.click_count || 0) / maxClicks : 0;
-        const barH   = Math.max(4, Math.round(pct * chartHeight));
-        const alias  = url.short_code || '—';
-        const clicks = url.click_count || 0;
-        return `
-          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0;">
-            <div style="font-size:.65rem;font-weight:600;color:var(--primary);"
-                 title="${clicks} clicks">${clicks}</div>
-            <div style="width:100%;height:${barH}px;
-                        background:linear-gradient(to top,var(--primary),var(--primary-light));
-                        border-radius:4px 4px 0 0;
-                        transition:height .5s ease;"
-                 title="${escapeHtml(url.original_url)}"></div>
-            <div style="font-size:.65rem;color:var(--text-muted);white-space:nowrap;
-                        overflow:hidden;text-overflow:ellipsis;max-width:100%;text-align:center;"
-                 title="${escapeHtml(alias)}">${escapeHtml(truncate(alias, 8))}</div>
-          </div>`;
-      }).join('')}
-    </div>`;
-}
-
-/* ── Zero-click URLs ── */
-function renderZeroClicks(urls) {
-  document.getElementById('zero-click-count').textContent = urls.length;
-  const container = document.getElementById('zero-click-list');
-
-  if (urls.length === 0) {
-    container.innerHTML = `
-      <div style="color:var(--text-2);font-size:.875rem;text-align:center;padding:.5rem 0;">
-        🎉 All your URLs have at least one click!
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = urls.slice(0, 6).map(url => `
-    <div style="display:flex;align-items:center;justify-content:space-between;
-                padding:.5rem 0;border-bottom:1px solid var(--border);gap:.5rem;"
-         class="last-no-border">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:.8125rem;font-weight:500;overflow:hidden;
-                    text-overflow:ellipsis;white-space:nowrap;"
-             title="${escapeHtml(url.original_url)}">
-          ${escapeHtml(truncate(url.original_url, 35))}
-        </div>
-        <div style="font-size:.75rem;color:var(--text-muted);">/${escapeHtml(url.short_code)}/</div>
-      </div>
-      <span class="badge badge-neutral">0 clicks</span>
-    </div>
-  `).join('') + (urls.length > 6
-    ? `<div style="font-size:.8rem;color:var(--text-2);text-align:center;margin-top:.5rem;">
-         +${urls.length - 6} more
-       </div>` : '');
-}
-
-/* ── Full Details Table ── */
-function renderFullTable(urls) {
-  const container = document.getElementById('ana-table-container');
-
-  if (urls.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">📊</div>
-        <div class="empty-title">No URLs to display</div>
-        <div class="empty-desc">Create short URLs to see analytics here.</div>
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Original URL</th>
-            <th>Short Code</th>
-            <th>Clicks</th>
-            <th>Status</th>
-            <th>Created</th>
-            <th>Expires</th>
-            <th>Last Click</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${urls.map((url, idx) => `
-            <tr>
-              <td style="color:var(--text-muted);font-size:.8rem;">${idx + 1}</td>
-              <td class="td-url" title="${escapeHtml(url.original_url)}">
-                <a href="${escapeHtml(url.original_url)}" target="_blank"
-                   rel="noopener" class="url-link">
-                  ${escapeHtml(truncate(url.original_url, 45))}
-                </a>
-              </td>
-              <td>
-                <a href="${escapeHtml(url.short_url || `/r/${url.short_code}/`)}"
-                   target="_blank" rel="noopener" class="url-link" style="font-weight:600;">
-                  /${escapeHtml(url.short_code)}/
-                </a>
-              </td>
-              <td>
-                <span class="badge badge-primary">
-                  👆 ${(url.click_count || 0).toLocaleString()}
-                </span>
-              </td>
-              <td>${statusBadge(url.expires_at)}</td>
-              <td style="font-size:.8125rem;color:var(--text-2);white-space:nowrap;">
-                ${fmtDate(url.created_at)}
-              </td>
-              <td style="font-size:.8125rem;color:var(--text-2);white-space:nowrap;">
-                ${url.expires_at ? fmtDate(url.expires_at) : '—'}
-              </td>
-              <td style="font-size:.8125rem;color:var(--text-2);white-space:nowrap;">
-                ${fmtDateTime(url.last_clicked_at)}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>`;
-}
-</script>
+{% if urls %}
+<table>
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Original URL</th>
+      <th>Short Code</th>
+      <th>Clicks</th>
+      <th>Status</th>
+      <th>Created</th>
+      <th>Last Click</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for url in urls %}
+    <tr>
+      <td class="muted">{{ forloop.counter }}</td>
+      <td class="td-truncate">
+        <a href="{{ url.original_url }}" target="_blank">{{ url.original_url|truncatechars:45 }}</a>
+      </td>
+      <td><a href="/r/{{ url.short_code }}/" target="_blank">/r/{{ url.short_code }}/</a></td>
+      <td><strong>{{ url.click_count }}</strong></td>
+      <td>
+        {% if url.is_expired %}
+        <span class="tag tag-red">Expired</span>
+        {% else %}
+        <span class="tag tag-green">Active</span>
+        {% endif %}
+      </td>
+      <td>{{ url.created_at|date:"M j, Y" }}</td>
+      <td>{% if url.last_clicked_at %}{{ url.last_clicked_at|date:"M j, Y H:i" }}{% else %}&mdash;{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty-msg">No URLs yet. Create some and share them to see analytics here.</p>
+{% endif %}
 {% endblock %}

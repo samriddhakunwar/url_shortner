@@ -1,230 +1,73 @@
 {% extends 'frontend/base.html' %}
 
 {% block title %}Dashboard{% endblock %}
-{% block meta_desc %}Your URL Shortener dashboard — stats, recent links, and quick actions.{% endblock %}
-{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
-<!-- ── Page Header ─────────────────────────────────────────────────────── -->
-<div class="page-header">
-  <h1 class="page-title">Welcome back, <span id="greeting-name">there</span></h1>
-  <p class="page-subtitle">Here's a summary of your shortened URLs and activity.</p>
-</div>
+<h1>Welcome back, {{ request.user.username }}</h1>
 
-<!-- ── Stats Cards ────────────────────────────────────────────────────── -->
-<div class="stats-grid" id="stats-grid">
-  <!-- Skeleton placeholders while loading -->
-  <div class="stat-card">
-    <div class="stat-icon si-indigo"></div>
-    <div class="stat-body">
-      <div class="stat-value" id="stat-total">—</div>
-      <div class="stat-label">Total URLs</div>
-    </div>
+<div class="stats-row">
+  <div class="stat-box">
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Total URLs</div>
   </div>
-
-  <div class="stat-card">
-    <div class="stat-icon si-green"></div>
-    <div class="stat-body">
-      <div class="stat-value" id="stat-clicks">—</div>
-      <div class="stat-label">Total Clicks</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ total_clicks }}</div>
+    <div class="stat-label">Total Clicks</div>
   </div>
-
-  <div class="stat-card">
-    <div class="stat-icon si-cyan"></div>
-    <div class="stat-body">
-      <div class="stat-value" id="stat-active">—</div>
-      <div class="stat-label">Active URLs</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ active }}</div>
+    <div class="stat-label">Active</div>
   </div>
-
-  <div class="stat-card">
-    <div class="stat-icon si-red"></div>
-    <div class="stat-body">
-      <div class="stat-value" id="stat-expired">—</div>
-      <div class="stat-label">Expired URLs</div>
-    </div>
+  <div class="stat-box">
+    <div class="stat-num">{{ expired }}</div>
+    <div class="stat-label">Expired</div>
   </div>
 </div>
 
-<!-- ── Main Content Row ───────────────────────────────────────────────── -->
-<div style="display:grid; grid-template-columns: 1fr auto; gap:1.25rem; align-items:start;">
+<div class="section-header">
+  <h2>Recent URLs</h2>
+  <a href="/urls/">View all</a>
+</div>
 
-  <!-- Recent URLs Table -->
-  <div class="card" style="min-width:0;">
-    <div class="card-header">
-      <span class="card-title">Recent URLs</span>
-      <a href="/urls/" class="btn btn-ghost btn-sm">View all →</a>
-    </div>
-    <div id="recent-urls-container">
-      <!-- Populated by JS -->
-      <div style="padding:1.5rem;">
-        <div class="skeleton sk-row" style="width:100%; height:14px; margin-bottom:.75rem;"></div>
-        <div class="skeleton sk-row" style="width:90%; height:14px; margin-bottom:.75rem;"></div>
-        <div class="skeleton sk-row" style="width:95%; height:14px;"></div>
-      </div>
-    </div>
-  </div>
+{% if recent %}
+<table>
+  <thead>
+    <tr>
+      <th>Original URL</th>
+      <th>Short Code</th>
+      <th>Clicks</th>
+      <th>Status</th>
+      <th>Created</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for url in recent %}
+    <tr>
+      <td class="td-truncate"><a href="{{ url.original_url }}" target="_blank">{{ url.original_url|truncatechars:50 }}</a></td>
+      <td><a href="/r/{{ url.short_code }}/" target="_blank">/r/{{ url.short_code }}/</a></td>
+      <td>{{ url.click_count }}</td>
+      <td>
+        {% if url.is_expired %}
+        <span class="tag tag-red">Expired</span>
+        {% else %}
+        <span class="tag tag-green">Active</span>
+        {% endif %}
+      </td>
+      <td>{{ url.created_at|date:"M j, Y" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty-msg">No URLs yet. <a href="/create/">Create your first one.</a></p>
+{% endif %}
 
-  <!-- Quick Actions Panel -->
-  <div style="width:230px; flex-shrink:0;">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Quick Actions</span>
-      </div>
-      <div class="card-body" style="display:flex;flex-direction:column;gap:.625rem;">
-        <a href="/create/" class="btn btn-primary btn-block">
-          Create Short URL
-        </a>
-        <a href="/urls/" class="btn btn-outline btn-block">
-          Manage URLs
-        </a>
-        <a href="/analytics/" class="btn btn-ghost btn-block">
-          View Analytics
-        </a>
-      </div>
-    </div>
-
-    <!-- Top URL card -->
-    <div class="card" style="margin-top:1rem;" id="top-url-card" style="display:none;">
-      <div class="card-header">
-        <span class="card-title">Top Link</span>
-      </div>
-      <div class="card-body" id="top-url-body" style="font-size:.875rem;">
-        —
-      </div>
-    </div>
-  </div>
-
-</div><!-- /grid -->
-{% endblock %}
-
-{% block extra_js %}
-<script>
-/* ── Dashboard Page ─────────────────────────────────────────────────────── */
-requireAuth();
-loadUserInfo();
-
-/* Update the greeting name once user info loads */
-const origLoad = window.loadUserInfo;
-document.addEventListener('DOMContentLoaded', async () => {
-  const res = await apiRequest('/auth/me/');
-  if (res && res.ok) {
-    const data = await res.json();
-    const name = data.username || data.email || '';
-    const greet = document.getElementById('greeting-name');
-    if (greet && name) greet.textContent = name;
-  }
-  await loadDashboard();
-});
-
-async function loadDashboard() {
-  try {
-    const res = await apiRequest('/urls/');
-    if (!res) return;
-
-    if (!res.ok) {
-      showToast('Failed to load dashboard data.', 'error');
-      return;
-    }
-
-    const urls = await res.json();
-
-    /* ── Stats ── */
-    const total   = urls.length;
-    const clicks  = urls.reduce((s, u) => s + (u.click_count || 0), 0);
-    const active  = urls.filter(u => !isExpired(u.expires_at)).length;
-    const expired = urls.filter(u => isExpired(u.expires_at)).length;
-
-    document.getElementById('stat-total').textContent   = total;
-    document.getElementById('stat-clicks').textContent  = clicks.toLocaleString();
-    document.getElementById('stat-active').textContent  = active;
-    document.getElementById('stat-expired').textContent = expired;
-
-    /* ── Recent URLs Table (last 5) ── */
-    renderRecentUrls(urls.slice(0, 5));
-
-    /* ── Top URL ── */
-    if (urls.length > 0) {
-      const top = [...urls].sort((a, b) => (b.click_count || 0) - (a.click_count || 0))[0];
-      const card = document.getElementById('top-url-card');
-      const body = document.getElementById('top-url-body');
-      if (card && body && top.click_count > 0) {
-        card.style.display = '';
-        body.innerHTML = `
-          <div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:.25rem;"
-               title="${escapeHtml(top.original_url)}">
-            ${escapeHtml(truncate(top.original_url, 35))}
-          </div>
-          <a href="${escapeHtml(top.short_url)}" target="_blank" class="url-link"
-             style="font-size:.8rem;">${escapeHtml(top.short_url)}</a>
-          <div style="margin-top:.5rem;display:flex;align-items:center;gap:.5rem;">
-            <span class="badge badge-primary">${top.click_count} clicks</span>
-          </div>
-        `;
-      }
-    }
-
-  } catch (err) {
-    showToast('Failed to load dashboard.', 'error');
-  }
-}
-
-function renderRecentUrls(urls) {
-  const container = document.getElementById('recent-urls-container');
-
-  if (urls.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon"></div>
-        <div class="empty-title">No URLs yet</div>
-        <div class="empty-desc">Create your first short URL to get started.</div>
-        <a href="/create/" class="btn btn-primary">Create Short URL</a>
-      </div>`;
-    return;
-  }
-
-  container.innerHTML = `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Original URL</th>
-            <th>Short URL</th>
-            <th>Clicks</th>
-            <th>Status</th>
-            <th>Created</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${urls.map(url => `
-            <tr>
-              <td class="td-url">
-                <a href="${escapeHtml(url.original_url)}" target="_blank" rel="noopener"
-                   class="url-link" title="${escapeHtml(url.original_url)}">
-                  ${escapeHtml(truncate(url.original_url, 45))}
-                </a>
-              </td>
-              <td>
-                <a href="${escapeHtml(url.short_url)}" target="_blank" rel="noopener"
-                   class="url-link" style="white-space:nowrap;">
-                  ${escapeHtml(url.short_code)}
-                </a>
-              </td>
-              <td>
-                <span class="badge badge-primary">
-                   ${(url.click_count || 0).toLocaleString()}
-                </span>
-              </td>
-              <td>${statusBadge(url.expires_at)}</td>
-              <td style="white-space:nowrap;color:var(--text-2);font-size:.8125rem;">
-                ${fmtDate(url.created_at)}
-              </td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>`;
-}
-</script>
+{% if top and top.click_count > 0 %}
+<div class="top-link-box">
+  <h3>Top performing link</h3>
+  <p><a href="/r/{{ top.short_code }}/" target="_blank">/r/{{ top.short_code }}/</a>
+    &mdash; {{ top.click_count }} click{{ top.click_count|pluralize }}</p>
+  <p class="muted">{{ top.original_url|truncatechars:60 }}</p>
+</div>
+{% endif %}
 {% endblock %}

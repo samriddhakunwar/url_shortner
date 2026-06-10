@@ -1,372 +1,69 @@
 {% extends 'frontend/base.html' %}
 
 {% block title %}Edit URL{% endblock %}
-{% block meta_desc %}Edit your shortened URL — update the original link, alias, or expiration date.{% endblock %}
-{% block page_title %}Edit URL{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <h1 class="page-title">Edit Short URL</h1>
-  <p class="page-subtitle">Update the details for this short link.</p>
-</div>
+<h1>Edit Short URL</h1>
 
-<div style="display:grid;grid-template-columns:minmax(0,600px) minmax(0,1fr);gap:1.25rem;align-items:start;">
-
-  <!-- ── Edit Form Card ───────────────────────────────────────────────── -->
+<div class="two-col">
   <div class="card">
-    <div class="card-header">
-      <span class="card-title">URL Details</span>
-      <!-- Current short code badge (populated by JS) -->
-      <span class="badge badge-primary" id="short-code-badge" style="font-size:.8rem;display:none;"></span>
-    </div>
-    <div class="card-body">
-
-      <!-- Skeleton shown while loading -->
-      <div id="form-skeleton">
-        <div class="skeleton sk-row" style="width:30%;height:12px;margin-bottom:.75rem;"></div>
-        <div class="skeleton sk-row" style="width:100%;height:38px;margin-bottom:1.25rem;"></div>
-        <div class="skeleton sk-row" style="width:30%;height:12px;margin-bottom:.75rem;"></div>
-        <div class="skeleton sk-row" style="width:100%;height:38px;margin-bottom:1.25rem;"></div>
-        <div class="skeleton sk-row" style="width:30%;height:12px;margin-bottom:.75rem;"></div>
-        <div class="skeleton sk-row" style="width:100%;height:38px;margin-bottom:1.25rem;"></div>
-        <div class="skeleton sk-row" style="width:40%;height:42px;"></div>
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="id_original_url">Long URL</label>
+        {{ form.original_url }}
+        {% if form.original_url.errors %}
+          <span class="field-err">{{ form.original_url.errors.0 }}</span>
+        {% endif %}
       </div>
-
-      <!-- Global error -->
-      <div class="alert alert-error" id="form-alert" role="alert"></div>
-      <!-- Not found error -->
-      <div class="alert alert-warning show" id="not-found-alert" style="display:none !important;">
-        URL not found or you don't have permission to edit it.
-        <a href="/urls/" style="font-weight:600;">Go back</a>
+      <div class="field">
+        <label>Short Code</label>
+        <input type="text" value="{{ obj.short_code }}" disabled class="disabled-input">
+        <span class="field-hint">Can't be changed after creation. Delete and recreate if you need a different one.</span>
       </div>
-
-      <form id="edit-form" novalidate style="display:none;">
-
-        <!-- Original URL -->
-        <div class="form-group">
-          <label class="form-label" for="original-url">
-            Long URL <span style="color:var(--danger)">*</span>
-          </label>
-          <input
-            type="url"
-            id="original-url"
-            name="original_url"
-            class="form-control"
-            placeholder="https://example.com/long/url"
-            required
-          >
-          <div class="field-error" id="original-url-error"></div>
-        </div>
-
-        <!-- Custom Alias (read-only — changing alias requires a new URL) -->
-        <div class="form-group">
-          <label class="form-label" for="short-code-display">
-            Short Code
-            <span class="opt">(cannot be changed after creation)</span>
-          </label>
-          <input
-            type="text"
-            id="short-code-display"
-            class="form-control"
-            disabled
-            style="background:#f8fafc;color:var(--text-2);cursor:not-allowed;"
-          >
-          <div class="form-hint">
-            To use a different alias, delete this URL and create a new one.
-          </div>
-        </div>
-
-        <!-- Expiration Date -->
-        <div class="form-group">
-          <label class="form-label" for="expires-at">
-            Expiration Date
-            <span class="opt">(optional)</span>
-          </label>
-          <input
-            type="datetime-local"
-            id="expires-at"
-            name="expires_at"
-            class="form-control"
-          >
-          <div class="form-hint">
-            Clear this field to remove the expiration date.
-          </div>
-          <div class="field-error" id="expires-at-error"></div>
-        </div>
-
-        <!-- Actions -->
-        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
-          <button type="submit" class="btn btn-primary btn-lg" id="save-btn">
-           Save Changes
-          </button>
-          <a href="/urls/" class="btn btn-ghost">
-            Cancel
-          </a>
-        </div>
-
-      </form>
-    </div>
+      <div class="field">
+        <label for="id_expires_at">Expires at <span class="optional">(optional)</span></label>
+        {{ form.expires_at }}
+        {% if form.expires_at.errors %}
+          <span class="field-err">{{ form.expires_at.errors.0 }}</span>
+        {% endif %}
+        <span class="field-hint">Clear to remove expiration.</span>
+      </div>
+      <div class="btn-row">
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="/urls/" class="btn">Cancel</a>
+      </div>
+    </form>
   </div>
 
-  <!-- ── Info Panel ────────────────────────────────────────────────────── -->
-  <div id="info-panel" style="display:none;">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">Link Info</span>
-      </div>
-      <div class="card-body" style="display:flex;flex-direction:column;gap:.875rem;">
+  <div class="card">
+    <h3>Link info</h3>
+    <dl class="info-list">
+      <dt>Short URL</dt>
+      <dd><a href="/r/{{ obj.short_code }}/" target="_blank">{{ request.scheme }}://{{ request.get_host }}/r/{{ obj.short_code }}/</a></dd>
+      <dt>Clicks</dt>
+      <dd>{{ obj.click_count }}</dd>
+      <dt>Status</dt>
+      <dd>{% if obj.is_expired %}<span class="tag tag-red">Expired</span>{% else %}<span class="tag tag-green">Active</span>{% endif %}</dd>
+      <dt>Created</dt>
+      <dd>{{ obj.created_at|date:"M j, Y H:i" }}</dd>
+      <dt>Last clicked</dt>
+      <dd>{% if obj.last_clicked_at %}{{ obj.last_clicked_at|date:"M j, Y H:i" }}{% else %}&mdash;{% endif %}</dd>
+    </dl>
 
-        <!-- Short URL -->
-        <div>
-          <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;
-                      letter-spacing:.07em;color:var(--text-2);margin-bottom:.35rem;">
-            Short URL
-          </div>
-          <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
-            <a id="info-short-url" href="#" target="_blank" class="url-link"
-               style="font-weight:600;word-break:break-all;flex:1;"></a>
-            <button class="btn btn-outline btn-sm" id="copy-btn">Copy</button>
-          </div>
-        </div>
-
-        <!-- Stats row -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-          <div style="background:var(--primary-bg);border-radius:var(--radius-sm);
-                      padding:.75rem;text-align:center;">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--primary);"
-                 id="info-clicks">—</div>
-            <div style="font-size:.75rem;color:var(--text-2);font-weight:500;">Clicks</div>
-          </div>
-          <div style="background:var(--success-bg);border-radius:var(--radius-sm);
-                      padding:.75rem;text-align:center;">
-            <div id="info-status" style="font-size:.9rem;font-weight:700;
-                 color:var(--success);margin-bottom:.15rem;">Active</div>
-            <div style="font-size:.75rem;color:var(--text-2);font-weight:500;">Status</div>
-          </div>
-        </div>
-
-        <!-- Metadata -->
-        <div style="font-size:.8125rem;color:var(--text-2);
-                    display:flex;flex-direction:column;gap:.4rem;
-                    border-top:1px solid var(--border);padding-top:.875rem;">
-          <div><strong>Created:</strong> <span id="info-created">—</span></div>
-          <div><strong>Last Clicked:</strong> <span id="info-last-click">—</span></div>
-          <div><strong>Updated:</strong> <span id="info-updated">—</span></div>
-        </div>
-
-        <!-- QR Code -->
-        <div id="info-qr" style="display:none;text-align:center;">
-          <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;
-                      letter-spacing:.07em;color:var(--text-2);margin-bottom:.5rem;">
-            QR Code
-          </div>
-          <img id="info-qr-img" src="" alt="QR Code"
-               style="width:130px;height:130px;border:4px solid #fff;
-                      border-radius:var(--radius-sm);
-                      box-shadow:var(--shadow-md);margin:0 auto;">
-          <div style="margin-top:.5rem;">
-            <a id="info-qr-download" href="#" download
-               class="btn btn-ghost btn-sm">Download</a>
-          </div>
-        </div>
-
-      </div>
+    {% if obj.qr_code %}
+    <div class="qr-box">
+      <p><strong>QR Code</strong></p>
+      <img src="{{ obj.qr_code.url }}" alt="QR code" width="130" height="130">
     </div>
+    {% endif %}
 
-    <!-- Danger Zone -->
-    <div class="card" style="margin-top:1rem;border-color:rgba(239,68,68,.2);">
-      <div class="card-header" style="background:rgba(239,68,68,.04);">
-        <span class="card-title" style="color:var(--danger);">Danger Zone</span>
-      </div>
-      <div class="card-body">
-        <p style="font-size:.875rem;color:var(--text-2);margin-bottom:.875rem;">
-          Deleting this URL is permanent. All analytics data will be lost.
-        </p>
-        <button class="btn btn-danger btn-sm" id="delete-btn">
-          🗑&nbsp; Delete This URL
-        </button>
-      </div>
-    </div>
+    <hr>
+    <form method="post" action="/urls/{{ obj.id }}/delete/"
+          onsubmit="return confirm('Delete this URL permanently?');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-danger btn-sm">Delete this URL</button>
+    </form>
   </div>
-
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-/* ── Edit URL Page ────────────────────────────────────────────────────────── */
-requireAuth();
-loadUserInfo();
-
-/* Get the URL ID from the path: /urls/42/edit/ */
-const urlId = (() => {
-  const m = window.location.pathname.match(/\/urls\/(\d+)\/edit\//);
-  return m ? parseInt(m[1], 10) : null;
-})();
-
-const formAlert = document.getElementById('form-alert');
-let currentShortUrl = '';
-
-function showFormAlert(msg) {
-  formAlert.textContent = msg;
-  formAlert.classList.add('show');
-}
-
-/* ── Load URL data ── */
-document.addEventListener('DOMContentLoaded', async () => {
-  if (!urlId) {
-    document.getElementById('form-skeleton').style.display = 'none';
-    document.getElementById('not-found-alert').style.display = 'flex';
-    return;
-  }
-
-  try {
-    const res = await apiRequest(`/urls/${urlId}/`);
-    if (!res) return;
-
-    if (res.status === 404 || res.status === 403) {
-      document.getElementById('form-skeleton').style.display = 'none';
-      document.getElementById('not-found-alert').style.display = 'flex';
-      return;
-    }
-
-    if (!res.ok) {
-      showToast('Failed to load URL data.', 'error');
-      return;
-    }
-
-    const data = await res.json();
-    populateForm(data);
-    populateInfoPanel(data);
-
-  } catch {
-    showToast('Network error loading URL.', 'error');
-  }
-});
-
-function populateForm(data) {
-  /* Hide skeleton, show form */
-  document.getElementById('form-skeleton').style.display = 'none';
-  document.getElementById('edit-form').style.display     = '';
-
-  /* Fill fields */
-  document.getElementById('original-url').value      = data.original_url || '';
-  document.getElementById('short-code-display').value = data.short_code   || '';
-
-  if (data.expires_at) {
-    /* datetime-local needs format: YYYY-MM-DDTHH:MM */
-    const dt = new Date(data.expires_at);
-    const local = new Date(dt.getTime() - dt.getTimezoneOffset() * 60000)
-                      .toISOString().slice(0, 16);
-    document.getElementById('expires-at').value = local;
-  }
-
-  /* Short code badge */
-  const badge = document.getElementById('short-code-badge');
-  badge.textContent  = `/${data.short_code}/`;
-  badge.style.display = '';
-}
-
-function populateInfoPanel(data) {
-  currentShortUrl = data.short_url || `/r/${data.short_code}/`;
-
-  const shortEl = document.getElementById('info-short-url');
-  shortEl.href        = currentShortUrl;
-  shortEl.textContent = currentShortUrl;
-
-  document.getElementById('info-clicks').textContent     = (data.click_count || 0).toLocaleString();
-  document.getElementById('info-created').textContent    = fmtDateTime(data.created_at);
-  document.getElementById('info-last-click').textContent = fmtDateTime(data.last_clicked_at);
-  document.getElementById('info-updated').textContent    = fmtDateTime(data.updated_at);
-
-  const expired = isExpired(data.expires_at);
-  const statusEl = document.getElementById('info-status');
-  statusEl.textContent = expired ? 'Expired' : 'Active';
-  statusEl.style.color = expired ? 'var(--danger)' : 'var(--success)';
-
-  if (data.qr_code_url) {
-    document.getElementById('info-qr-img').src        = data.qr_code_url;
-    document.getElementById('info-qr-download').href  = data.qr_code_url;
-    document.getElementById('info-qr').style.display  = '';
-  }
-
-  /* Copy button */
-  document.getElementById('copy-btn').addEventListener('click', function () {
-    copyText(currentShortUrl, this);
-  });
-
-  /* Delete button */
-  document.getElementById('delete-btn').addEventListener('click', () => {
-    openDeleteModal(async () => {
-      const btn = document.getElementById('confirm-delete-btn');
-      setLoading(btn, true, 'Deleting…');
-      try {
-        const res = await apiRequest(`/urls/${urlId}/`, { method: 'DELETE' });
-        if (res && (res.status === 204 || res.ok)) {
-          showToast('URL deleted.', 'success');
-          setTimeout(() => { window.location.href = '/urls/'; }, 1000);
-        } else {
-          showToast('Failed to delete URL.', 'error');
-        }
-      } finally {
-        setLoading(btn, false);
-      }
-    });
-  });
-
-  document.getElementById('info-panel').style.display = '';
-}
-
-/* ── Handle Form Submit (PATCH) ── */
-document.getElementById('edit-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  clearFieldErrors(document.getElementById('edit-form'));
-  formAlert.classList.remove('show');
-
-  const originalUrl = document.getElementById('original-url').value.trim();
-  const expiresAt   = document.getElementById('expires-at').value;
-  const btn         = document.getElementById('save-btn');
-
-  /* Validation */
-  if (!originalUrl) {
-    showFieldError('original-url', 'URL is required.');
-    return;
-  }
-  try { new URL(originalUrl); } catch {
-    showFieldError('original-url', 'Please enter a valid URL (include https://).');
-    return;
-  }
-
-  const payload = { original_url: originalUrl };
-  /* Send null to clear expiry, or new ISO string */
-  payload.expires_at = expiresAt ? new Date(expiresAt).toISOString() : null;
-
-  setLoading(btn, true, 'Saving…');
-
-  try {
-    const res = await apiRequest(`/urls/${urlId}/`, {
-      method: 'PATCH',
-      body  : JSON.stringify(payload),
-    });
-    if (!res) return;
-
-    const data = await res.json();
-
-    if (res.ok) {
-      showToast('Changes saved successfully!', 'success');
-      populateInfoPanel(data);   // refresh info panel
-    } else {
-      let handled = false;
-      if (data.original_url) { showFieldError('original-url', data.original_url[0]); handled = true; }
-      if (data.expires_at)   { showFieldError('expires-at',   data.expires_at[0]);   handled = true; }
-      if (data.detail && !handled) showFormAlert(data.detail);
-      if (!handled && !data.detail) showFormAlert('Save failed. Please check the fields.');
-    }
-  } catch {
-    showFormAlert('Network error. Please try again.');
-  } finally {
-    setLoading(btn, false);
-  }
-});
-</script>
 {% endblock %}
