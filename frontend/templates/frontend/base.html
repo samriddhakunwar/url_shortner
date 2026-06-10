@@ -1,0 +1,70 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
+  <title>{% block title %}LinkSnap{% endblock %} — URL Shortener</title>
+  <meta name="description" content="{% block meta_desc %}Manage and track your shortened URLs{% endblock %}">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+
+  <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+
+<div id="toast-container" aria-live="polite"></div>
+
+<div class="app-layout">
+
+
+  {% include 'frontend/partials/sidebar.html' %}
+
+
+  <div class="main-content">
+
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="sidebar-toggle" aria-label="Toggle navigation">&#9776;</button>
+        <span class="topbar-title">{% block page_title %}Dashboard{% endblock %}</span>
+      </div>
+      <div class="topbar-right">
+        <a href="/create/" class="btn btn-primary btn-sm">
+          &#xFF0B;&nbsp;New URL
+        </a>
+      </div>
+    </header>
+    <main class="page-content">
+      {% block content %}{% endblock %}
+    </main>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="delete-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-box">
+    <p class="modal-title" id="modal-title">Delete Short URL</p>
+    <p class="modal-body">
+      Are you sure you want to delete this short URL?
+      This action <strong>cannot be undone</strong> and all associated analytics will be lost.
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancel</button>
+      <button class="btn btn-danger" id="confirm-delete-btn">Yes, Delete</button>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'frontend/js/app.js' %}"></script>
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

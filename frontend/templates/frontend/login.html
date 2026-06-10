@@ -1,0 +1,172 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — LinkSnap URL Shortener</title>
+  <meta name="description" content="Sign in to your LinkSnap account to manage your shortened URLs.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'frontend/css/style.css' %}">
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<div class="auth-layout">
+
+  <!-- ── Left Panel: Branding ─────────────────────────────────────────── -->
+  <div class="auth-left" aria-hidden="true">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🔗</div>
+      <span class="auth-logo-name">LinkSnap</span>
+    </div>
+
+    <h1 class="auth-headline">
+      Shorten, Share<br>& Track Links
+    </h1>
+    <p class="auth-desc">
+      Create powerful short URLs with custom aliases, expiration dates,
+      QR codes, and real-time click analytics — all in one place.
+    </p>
+
+    <div class="auth-features">
+      <div class="auth-feat">
+        <div class="auth-feat-icon">⚡</div>
+        Instant URL shortening with custom aliases
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon"></div>
+        Real-time click analytics &amp; tracking
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon"></div>
+        Auto-generated QR codes for every URL
+      </div>
+      <div class="auth-feat">
+        <div class="auth-feat-icon"></div>
+        Secure JWT-authenticated API
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right Panel: Login Form ──────────────────────────────────────── -->
+  <div class="auth-right">
+    <div class="auth-box">
+      <h2 class="auth-title">Welcome back</h2>
+      <p class="auth-sub">Sign in to your LinkSnap account</p>
+
+      <!-- Global form error alert -->
+      <div class="alert alert-error" id="form-alert" role="alert"></div>
+
+      <form id="login-form" novalidate>
+
+        <!-- Email -->
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-control"
+            placeholder="you@example.com"
+            autocomplete="email"
+            required
+          >
+          <div class="field-error" id="email-error"></div>
+        </div>
+
+        <!-- Password -->
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="form-control"
+            placeholder="Your password"
+            autocomplete="current-password"
+            required
+          >
+          <div class="field-error" id="password-error"></div>
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn-primary btn-lg btn-block" id="login-btn">
+          Sign In
+        </button>
+
+      </form>
+
+      <div class="divider"></div>
+      <p class="switch-link">
+        Don't have an account? <a href="/register/">Create one free</a>
+      </p>
+    </div>
+  </div>
+
+</div><!-- /auth-layout -->
+
+<script src="{% static 'frontend/js/app.js' %}"></script>
+<script>
+/* ── Login Page Logic ──────────────────────────────────────────────────── */
+redirectIfLoggedIn(); // already logged in → go to dashboard
+
+const loginForm = document.getElementById('login-form');
+const formAlert = document.getElementById('form-alert');
+
+function showFormAlert(msg) {
+  formAlert.textContent = msg;
+  formAlert.classList.add('show');
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearFieldErrors(loginForm);
+  formAlert.classList.remove('show');
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const btn      = document.getElementById('login-btn');
+
+  /* Basic client-side validation */
+  if (!email) { showFieldError('email', 'Email is required.'); return; }
+  if (!password) { showFieldError('password', 'Password is required.'); return; }
+
+  setLoading(btn, true, 'Signing in…');
+
+  try {
+    const res = await fetch('/api/auth/login/', {
+      method : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body   : JSON.stringify({ email, password }),
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      /* Store tokens and redirect */
+      Auth.setTokens(data.access, data.refresh);
+      const params = new URLSearchParams(window.location.search);
+      window.location.href = params.get('next') || '/';
+    } else if (res.status === 401) {
+      showFormAlert('Invalid email or password. Please try again.');
+    } else {
+      /* Map field-level errors from DRF */
+      let handled = false;
+      if (data.email)    { showFieldError('email',    data.email[0]);    handled = true; }
+      if (data.password) { showFieldError('password', data.password[0]); handled = true; }
+      if (data.detail && !handled) showFormAlert(data.detail);
+      if (!handled && !data.detail) showFormAlert('Login failed. Please try again.');
+    }
+  } catch {
+    showFormAlert('Network error. Please check your connection.');
+  } finally {
+    setLoading(btn, false);
+  }
+});
+</script>
+</body>
+</html>

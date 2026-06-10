@@ -1,0 +1,291 @@
+{% extends 'frontend/base.html' %}
+
+{% block title %}Create Short URL{% endblock %}
+{% block meta_desc %}Create a new shortened URL with optional custom alias, expiration date, and QR code.{% endblock %}
+{% block page_title %}Create Short URL{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">Create Short URL</h1>
+  <p class="page-subtitle">Fill in the details below to generate your short link.</p>
+</div>
+
+<div style="display:grid; grid-template-columns:minmax(0,600px) minmax(0,1fr); gap:1.25rem; align-items:start;">
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">URL Details</span>
+    </div>
+    <div class="card-body">
+
+
+      <div class="alert alert-error" id="form-alert" role="alert"></div>
+
+      <form id="create-form" novalidate>
+
+        <div class="form-group">
+          <label class="form-label" for="original-url">
+            Long URL <span style="color:var(--danger);">*</span>
+          </label>
+          <input
+            type="url"
+            id="original-url"
+            name="original_url"
+            class="form-control"
+            placeholder="https://example.com/very/long/url/that/needs/shortening"
+            required
+            autofocus
+          >
+          <div class="field-error" id="original-url-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="custom-alias">
+            Custom Alias <span class="opt">(optional)</span>
+          </label>
+          <input
+            type="text"
+            id="custom-alias"
+            name="custom_alias"
+            class="form-control"
+            placeholder="e.g. my-promo (letters &amp; numbers only)"
+            maxlength="20"
+            pattern="[A-Za-z0-9]+"
+          >
+          <div class="form-hint">
+            Leave empty to auto-generate. Alphanumeric only, max 20 characters.
+          </div>
+          <div class="field-error" id="custom-alias-error"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="expires-at">
+            Expiration Date <span class="opt">(optional)</span>
+          </label>
+          <input
+            type="datetime-local"
+            id="expires-at"
+            name="expires_at"
+            class="form-control"
+          >
+          <div class="form-hint">
+            Leave empty for no expiration. Link will stop working after this date.
+          </div>
+          <div class="field-error" id="expires-at-error"></div>
+        </div>
+
+
+        <div style="display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;">
+          <button type="submit" class="btn btn-primary btn-lg" id="create-btn">
+            &nbsp; Create Short URL
+          </button>
+          <button type="button" class="btn btn-ghost" id="reset-btn">
+            Reset
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <div>
+
+    <div class="url-result" id="url-result">
+      <div class="result-label">Short URL Created!</div>
+
+      <div class="result-url-row">
+        <span class="result-short-url" id="result-short-url"></span>
+        <button class="btn btn-outline btn-sm" id="copy-btn" onclick="copyResult()">
+          Copy
+        </button>
+        <a class="btn btn-ghost btn-sm" id="open-btn" href="#" target="_blank" rel="noopener">
+          Open
+        </a>
+      </div>
+
+      <div style="font-size:.8rem;color:var(--text-2);margin-bottom:.75rem;word-break:break-all;">
+        <strong>Original:</strong> <span id="result-original-url"></span>
+      </div>
+
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap;margin-bottom:.875rem;">
+        <span class="badge badge-neutral" id="result-alias-badge" style="display:none;">
+           Alias: <span id="result-alias"></span>
+        </span>
+        <span class="badge badge-warning" id="result-expiry-badge" style="display:none;">
+          Expires: <span id="result-expiry"></span>
+        </span>
+        <span class="badge badge-success"> Active</span>
+      </div>
+
+
+      <div class="qr-section" id="qr-section" style="display:none;">
+        <div style="font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.07em;
+                    color:var(--text-2);margin-bottom:.5rem;">QR Code</div>
+        <img id="qr-image" src="" alt="QR Code for short URL">
+        <div style="margin-top:.5rem;">
+          <a id="qr-download" href="#" download class="btn btn-ghost btn-sm">
+            ⬇ Download QR
+          </a>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;padding-top:.875rem;border-top:1px solid rgba(79,70,229,.15);">
+        <button class="btn btn-outline btn-sm" onclick="resetForm()">
+           Create Another
+        </button>
+        <a href="/urls/" class="btn btn-ghost btn-sm" style="margin-left:.5rem;">
+          View All URLs →
+        </a>
+      </div>
+    </div>
+
+    <div id="result-placeholder" class="card" style="text-align:center;padding:2rem 1.5rem;">
+      <div style="font-size:2.5rem;margin-bottom:.875rem;opacity:.3;">🔗</div>
+      <div style="font-size:.9375rem;font-weight:600;color:var(--text);margin-bottom:.35rem;">
+        Your short URL will appear here
+      </div>
+      <div style="font-size:.875rem;color:var(--text-2);">
+        Fill in the form on the left and click "Create Short URL".
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+requireAuth();
+loadUserInfo();
+
+const createForm  = document.getElementById('create-form');
+const formAlert   = document.getElementById('form-alert');
+const urlResult   = document.getElementById('url-result');
+const placeholder = document.getElementById('result-placeholder');
+
+let lastShortUrl = '';
+
+function showFormAlert(msg) {
+  formAlert.textContent = msg;
+  formAlert.classList.add('show');
+}
+
+createForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearFieldErrors(createForm);
+  formAlert.classList.remove('show');
+
+  const originalUrl = document.getElementById('original-url').value.trim();
+  const customAlias = document.getElementById('custom-alias').value.trim();
+  const expiresAt   = document.getElementById('expires-at').value;
+  const btn         = document.getElementById('create-btn');
+
+
+  if (!originalUrl) {
+    showFieldError('original-url', 'A URL is required.');
+    return;
+  }
+  try { new URL(originalUrl); } catch {
+    showFieldError('original-url', 'Please enter a valid URL (including https://).');
+    return;
+  }
+  if (customAlias && !/^[A-Za-z0-9]+$/.test(customAlias)) {
+    showFieldError('custom-alias', 'Alias must contain only letters and numbers.');
+    return;
+  }
+  if (expiresAt && new Date(expiresAt) <= new Date()) {
+    showFieldError('expires-at', 'Expiration date must be in the future.');
+    return;
+  }
+
+  const payload = { original_url: originalUrl };
+  if (customAlias) payload.custom_alias = customAlias;
+  if (expiresAt)   payload.expires_at   = new Date(expiresAt).toISOString();
+
+  setLoading(btn, true, 'Creating…');
+
+  try {
+    const res = await apiRequest('/urls/', {
+      method: 'POST',
+      body  : JSON.stringify(payload),
+    });
+    if (!res) return;
+
+    const data = await res.json();
+
+    if (res.ok) {
+      displayResult(data);
+      showToast('Short URL created successfully!', 'success');
+    } else {
+
+      let handled = false;
+      if (data.original_url)  { showFieldError('original-url',  data.original_url[0]);  handled = true; }
+      if (data.custom_alias)  { showFieldError('custom-alias',  data.custom_alias[0]);  handled = true; }
+      if (data.expires_at)    { showFieldError('expires-at',    data.expires_at[0]);    handled = true; }
+      if (data.detail && !handled) showFormAlert(data.detail);
+      if (!handled && !data.detail) showFormAlert('Failed to create URL. Please try again.');
+    }
+  } catch {
+    showFormAlert('Network error. Please try again.');
+  } finally {
+    setLoading(btn, false);
+  }
+});
+
+function displayResult(data) {
+  lastShortUrl = data.short_url || `/r/${data.short_code}/`;
+
+  document.getElementById('result-short-url').textContent  = lastShortUrl;
+  document.getElementById('result-original-url').textContent = truncate(data.original_url, 80);
+
+  const openBtn = document.getElementById('open-btn');
+  openBtn.href = lastShortUrl;
+
+  if (data.short_code) {
+    const aliasEl = document.getElementById('result-alias-badge');
+    document.getElementById('result-alias').textContent = data.short_code;
+    aliasEl.style.display = '';
+  }
+
+
+  if (data.expires_at) {
+    const expEl = document.getElementById('result-expiry-badge');
+    document.getElementById('result-expiry').textContent = fmtDateTime(data.expires_at);
+    expEl.style.display = '';
+  }
+
+  if (data.qr_code_url) {
+    const qrSection  = document.getElementById('qr-section');
+    const qrImg      = document.getElementById('qr-image');
+    const qrDownload = document.getElementById('qr-download');
+    qrImg.src        = data.qr_code_url;
+    qrImg.alt        = `QR Code for ${lastShortUrl}`;
+    qrDownload.href  = data.qr_code_url;
+    qrSection.style.display = '';
+  }
+
+  placeholder.style.display = 'none';
+  urlResult.classList.add('show');
+}
+
+async function copyResult() {
+  const btn = document.getElementById('copy-btn');
+  await copyText(lastShortUrl, btn);
+}
+
+function resetForm() {
+  createForm.reset();
+  clearFieldErrors(createForm);
+  formAlert.classList.remove('show');
+  urlResult.classList.remove('show');
+  placeholder.style.display = '';
+  document.getElementById('result-expiry-badge').style.display = 'none';
+  document.getElementById('result-alias-badge').style.display  = 'none';
+  document.getElementById('qr-section').style.display          = 'none';
+  document.getElementById('original-url').focus();
+}
+
+document.getElementById('reset-btn').addEventListener('click', resetForm);
+</script>
+{% endblock %}

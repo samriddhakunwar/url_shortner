@@ -33,6 +33,8 @@ INSTALLED_APPS = [
     'drf_yasg',
     'accounts',
     'shortener',
+    # Frontend app — templates & static assets
+    'frontend',
 ]
 
 MIDDLEWARE = [

@@ -26,16 +26,19 @@ urlpatterns = [
     # Admin
     path('admin/', admin.site.urls),
 
-    # API
+    # API endpoints
     path('api/', include('accounts.urls')),
     path('api/', include('shortener.urls')),
 
-    # Public redirect
+    # Public redirect (e.g. /r/abc123/)
     path('r/<str:short_code>/', RedirectView.as_view(), name='redirect'),
 
-    # Swagger documentation
+    # Frontend pages (HTML templates served via Django views)
+    path('', include('frontend.urls')),
+
+    # Swagger / ReDoc documentation
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
-    path('redoc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'),
+    path('redoc/',   schema_view.with_ui('redoc',   cache_timeout=0), name='schema-redoc'),
 ]
 
 # Serve media files in development
