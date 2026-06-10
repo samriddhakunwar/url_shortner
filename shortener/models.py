@@ -17,7 +17,7 @@ class ShortURL(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     last_clicked_at = models.DateTimeField(blank=True, null=True)
-    qr_code = models.ImageField(upload_to='qrcodes/', blank=True, null=True)
+    qr_code = models.TextField(blank=True, default='')
 
     class Meta:
         ordering = ['-created_at']

@@ -54,12 +54,8 @@ class ShortURLSerializer(serializers.ModelSerializer):
         return f'/r/{obj.short_code}/'
 
     def get_qr_code_url(self, obj):
-        """Return the absolute URL to the QR code image, or null."""
         if obj.qr_code:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.qr_code.url)
-            return obj.qr_code.url
+            return f'data:image/png;base64,{obj.qr_code}'
         return None
 
     def validate_custom_alias(self, value):

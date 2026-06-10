@@ -54,7 +54,7 @@
     {% if obj.qr_code %}
     <div class="qr-box">
       <p><strong>QR Code</strong></p>
-      <img src="{{ obj.qr_code.url }}" alt="QR code" width="130" height="130">
+      <img src="data:image/png;base64,{{ obj.qr_code }}" alt="QR code" width="130" height="130">
     </div>
     {% endif %}
 

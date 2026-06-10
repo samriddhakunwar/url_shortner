@@ -51,7 +51,7 @@
       {% if created.qr_code %}
       <div class="qr-box">
         <p><strong>QR Code</strong></p>
-        <img src="{{ created.qr_code.url }}" alt="QR code" width="150" height="150">
+        <img src="data:image/png;base64,{{ created.qr_code }}" alt="QR code" width="150" height="150">
       </div>
       {% endif %}
     </div>
